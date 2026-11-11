@@ -1,0 +1,56 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: #0a0a0a;
+  color: #ffffff;
+  font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans Georgian", sans-serif;
+  min-height: 100vh;
+}
+.wrap { max-width: 560px; margin: 0 auto; padding: 28px 18px 40px; }
+header { text-align: center; margin-bottom: 8px; }
+h1 { font-size: 34px; letter-spacing: .5px; }
+.sub { color: #9aa3b2; margin-top: 4px; font-size: 15px; }
+
+.gauge { text-align: center; padding: 34px 0 18px; }
+.big { font-size: 84px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.big .unit { font-size: 22px; font-weight: 600; color: #9aa3b2; margin-left: 8px; }
+.status { color: #9aa3b2; margin-top: 12px; font-size: 15px; min-height: 22px; }
+
+.start {
+  display: block; width: 100%; padding: 16px; font-size: 18px; font-weight: 700;
+  color: #fff; background: #12275c; border: none; border-radius: 14px; cursor: pointer;
+}
+.start:active { opacity: .85; }
+.start:disabled { opacity: .55; cursor: default; }
+.start.stop { background: #5c1212; }
+.hint { text-align: center; color: #9aa3b2; font-size: 13px; margin: 12px 0 22px; }
+
+.cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.card {
+  background: #141414; border: 1px solid #232323; border-radius: 14px;
+  padding: 14px 10px; text-align: center;
+}
+.card .label { font-size: 13px; color: #9aa3b2; margin-bottom: 8px; }
+.card .value { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.card .value small { font-size: 13px; font-weight: 600; color: #9aa3b2; }
+.card .sub-value { font-size: 12px; color: #9aa3b2; margin-top: 4px; min-height: 16px; }
+
+.server { text-align: center; color: #9aa3b2; font-size: 13px; margin: 16px 0 4px; min-height: 18px; }
+
+.share {
+  display: block; width: 100%; margin-top: 14px; padding: 12px; font-size: 15px; font-weight: 600;
+  color: #fff; background: #1d1d1d; border: 1px solid #2c2c2c; border-radius: 12px; cursor: pointer;
+}
+.share:active { opacity: .85; }
+
+.about { margin-top: 28px; background: #141414; border: 1px solid #232323; border-radius: 14px; padding: 18px; }
+.about h2 { font-size: 17px; margin-bottom: 10px; }
+.about p { font-size: 14px; line-height: 1.6; color: #c9ced6; margin-bottom: 8px; }
+.about p:last-child { margin-bottom: 0; }
+
+footer { text-align: center; color: #666; font-size: 12px; margin-top: 26px; }
+
+@media (max-width: 380px) {
+  .big { font-size: 68px; }
+  .card .value { font-size: 20px; }
+}

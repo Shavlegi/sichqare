@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="სიჩქარე — ინტერნეტის სიჩქარის უფასო ტესტი ქართულად. ჩამოტვირთვა, ატვირთვა და Ping.">
+<title>სიჩქარე — ინტერნეტის სიჩქარის ტესტი</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <h1>სიჩქარე</h1>
+    <p class="sub">ინტერნეტის სიჩქარის ტესტი</p>
+  </header>
+
+  <section class="gauge" aria-live="polite">
+    <div class="big"><span id="bigSpeed">—</span><span class="unit" id="bigUnit">Mbps</span></div>
+    <p class="status" id="statusText">დააჭირე ღილაკს და გაიგე შენი ინტერნეტის სიჩქარე</p>
+  </section>
+
+  <button id="startBtn" class="start">ტესტის დაწყება</button>
+  <p class="hint">ერთი ტესტი დაახლოებით 100 MB ინტერნეტს მოიხმარს — ჯობია Wi-Fi-ზე გაუშვა.</p>
+
+  <section class="cards">
+    <div class="card">
+      <div class="label">⬇ ჩამოტვირთვა</div>
+      <div class="value"><span id="resDown">—</span> <small>Mbps</small></div>
+      <div class="sub-value" id="resDownMB"></div>
+    </div>
+    <div class="card">
+      <div class="label">⬆ ატვირთვა</div>
+      <div class="value"><span id="resUp">—</span> <small>Mbps</small></div>
+      <div class="sub-value" id="resUpMB"></div>
+    </div>
+    <div class="card">
+      <div class="label">Ping</div>
+      <div class="value"><span id="resPing">—</span> <small>ms</small></div>
+      <div class="sub-value" id="resJitter"></div>
+    </div>
+  </section>
+
+  <p class="server" id="serverInfo"></p>
+
+  <button id="shareBtn" class="share" hidden>შედეგის კოპირება</button>
+
+  <section class="about">
+    <h2>როგორ მუშაობს?</h2>
+    <p>ტესტი შენი ბრაუზერიდან იზომება Cloudflare-ის უახლოესი სერვერის წინააღმდეგ: ჩამოტვირთვისას ფაილი ჩამოდის და დრო ითვლება, ატვირთვისას — პირიქით. Ping არის დრო, რაც სერვერის პასუხს სჭირდება.</p>
+    <p>შედეგზე მოქმედებს Wi-Fi სიგნალი, ტელეფონი და ქსელის დატვირთვა. ზუსტი შედეგისთვის ტესტი რამდენჯერმე გაუშვი და სხვა პროგრამები დახურე.</p>
+  </section>
+
+  <footer>სიჩქარე · უფასო ტესტი · მონაცემები არსად ინახება</footer>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
