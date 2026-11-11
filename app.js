@@ -1,32 +1,167 @@
-/* სიჩქარე — ინტერნეტის სიჩქარის ტესტი.
+/* სიჩქარე v2 — ინტერნეტის სიჩქარის ტესტი.
    იზომება Cloudflare-ის უახლოესი სერვერის (speed.cloudflare.com) წინააღმდეგ.
-   საჯარო endpoint-ები, გასაღები არ სჭირდება. */
+   საჯარო endpoint-ები, გასაღები არ სჭირდება.
+   v2: ისტორია, შეფასება, IP/პროვაიდერი, ცოცხალი გრაფიკი, ფერები,
+   სწრაფი/სრული რეჟიმი, PWA. */
 'use strict';
 
 var DOWN_BASE = 'https://speed.cloudflare.com/__down';
 var UP_URL = 'https://speed.cloudflare.com/__up';
-var DOWNLOAD_SECONDS = 10;
-var UPLOAD_SECONDS = 10;
-var DOWNLOAD_STREAMS = 4;
-var UPLOAD_STREAMS = 3;
+var DOWNLOAD_CHUNK = 25000000; /* __down 100 MB-ზე 403-ს აბრუნებს */
+
+var MODES = {
+  quick: { downSec: 5, upSec: 5, downStreams: 2, upStreams: 2, hint: 'სწრაფი ტესტი დაახლოებით 40 MB ინტერნეტს მოიხმარს — ჯობია Wi-Fi-ზე გაუშვა.' },
+  full: { downSec: 10, upSec: 10, downStreams: 4, upStreams: 3, hint: 'სრული ტესტი დაახლოებით 100 MB ინტერნეტს მოიხმარს — ჯობია Wi-Fi-ზე გაუშვა.' }
+};
+var mode = 'full';
 
 var $ = function (id) { return document.getElementById(id); };
-var bigSpeed = $('bigSpeed'), statusText = $('statusText'), startBtn = $('startBtn'),
-    resDown = $('resDown'), resUp = $('resUp'), resPing = $('resPing'),
+var bigSpeed = $('bigSpeed'), statusText = $('statusText'), verdictEl = $('verdict'),
+    startBtn = $('startBtn'), resDown = $('resDown'), resUp = $('resUp'), resPing = $('resPing'),
     resDownMB = $('resDownMB'), resUpMB = $('resUpMB'), resJitter = $('resJitter'),
-    serverInfo = $('serverInfo'), shareBtn = $('shareBtn');
+    serverInfo = $('serverInfo'), netInfo = $('netInfo'), shareBtn = $('shareBtn'),
+    hintText = $('hintText'), graphCanvas = $('graph'),
+    historySection = $('historySection'), historyList = $('historyList');
 
 var running = false, stopFlag = false, aborters = [];
 var lastResult = null, usedBytes = 0;
+var net = { ip: null, asn: null, isp: null, city: null, country: null, server: null };
+var graphSamples = []; /* {t, v, phase} — t წამებში ფაზის დაწყებიდან */
 
 function fmt(n, d) { return n.toFixed(d === undefined ? 1 : d); }
 function mbps(bytes, seconds) { return (bytes * 8) / seconds / 1e6; }
 function mbs(bytes, seconds) { return bytes / seconds / 1e6; }
-
 function setStatus(t) { statusText.textContent = t; }
 function setBig(v) { bigSpeed.textContent = v; }
 
-/* ---- Ping: warmup + 5 გაზომვა, მინიმუმია Ping, jitter — საშუალო ცვალებადობა ---- */
+/* ---- შეფასება: რას ჰყოფნის სიჩქარე (2) ---- */
+function verdictFor(down, ping) {
+  var parts = [];
+  if (down >= 100) parts.push('შესანიშნავი სიჩქარე — 4K ვიდეო, დიდი ფაილები, ყველაფერი თავისუფლად.');
+  else if (down >= 50) parts.push('კარგი სიჩქარე — 4K ვიდეო და ვიდეოზარები უპრობლემოდ.');
+  else if (down >= 25) parts.push('საშუალო სიჩქარე — Full HD ვიდეო კარგად იმუშავებს, 4K შეიძლება გაჭედოს.');
+  else if (down >= 10) parts.push('ნელი სიჩქარე — YouTube 720p-ზე, დიდი ფაილები ნელა ჩაიტვირთება.');
+  else parts.push('ძალიან ნელი — მხოლოდ მიმოწერა და მსუბუქი გვერდები.');
+  if (ping != null) {
+    if (ping <= 30) parts.push('Ping დაბალია — ონლაინ თამაშებისთვის კარგია.');
+    else if (ping <= 80) parts.push('Ping საშუალოა — თამაშში მცირე დაყოვნება იგრძნობა.');
+    else parts.push('Ping მაღალია — თამაშები და ვიდეოზარები გაჭედავს.');
+  }
+  return parts.join(' ');
+}
+
+/* ფერი შედეგის მიხედვით (5): >=50 მწვანე, >=10 ყვითელი, <10 წითელი */
+function rateClass(v) { return v >= 50 ? 'good' : (v >= 10 ? 'mid' : 'bad'); }
+function colorBig(v) {
+  bigSpeed.classList.remove('good', 'mid', 'bad');
+  if (v != null && isFinite(v)) bigSpeed.classList.add(rateClass(v));
+}
+
+/* ---- ცოცხალი გრაფიკი (4) ---- */
+function drawGraph() {
+  var ctx = graphCanvas.getContext('2d');
+  var W = graphCanvas.width, H = graphCanvas.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = '#232323'; ctx.lineWidth = 1;
+  for (var g = 1; g < 4; g++) {
+    ctx.beginPath(); ctx.moveTo(0, H * g / 4); ctx.lineTo(W, H * g / 4); ctx.stroke();
+  }
+  if (!graphSamples.length) return;
+  var maxV = 10;
+  graphSamples.forEach(function (s) { if (s.v > maxV) maxV = s.v; });
+  var maxT = 0;
+  graphSamples.forEach(function (s) { if (s.t > maxT) maxT = s.t; });
+  if (maxT < 1) maxT = 1;
+  function line(phase, color) {
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath();
+    var started = false;
+    graphSamples.forEach(function (s) {
+      if (s.phase !== phase) return;
+      var x = (s.t / maxT) * (W - 8) + 4;
+      var y = H - 6 - (s.v / maxV) * (H - 14);
+      if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+  line('down', '#4d8dff');
+  line('up', '#3ddc84');
+}
+function graphPush(t, v, phase) {
+  graphSamples.push({ t: t, v: v, phase: phase });
+  if (graphSamples.length > 400) graphSamples.shift();
+  drawGraph();
+}
+
+/* ---- ისტორია, localStorage (1) ---- */
+var HISTORY_KEY = 'sichqare-history-v1';
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch (e) { return []; }
+}
+function saveHistory(h) {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0, 20))); } catch (e) {}
+}
+function renderHistory() {
+  var h = loadHistory();
+  historySection.hidden = !h.length;
+  historyList.innerHTML = '';
+  h.forEach(function (r) {
+    var li = document.createElement('li');
+    var d = new Date(r.t);
+    var when = d.toLocaleDateString('ka-GE', { day: 'numeric', month: 'short' }) +
+      ', ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    var vals = '↓ ' + fmt(r.down) + ' · ↑ ' + fmt(r.up) + ' · ' + fmt(r.ping, 0) + ' ms';
+    var w = document.createElement('span'); w.className = 'when'; w.textContent = when;
+    var v = document.createElement('span'); v.textContent = vals;
+    li.appendChild(v); li.appendChild(w);
+    historyList.appendChild(li);
+  });
+}
+function addHistory(r) {
+  var h = loadHistory();
+  h.unshift({ t: Date.now(), down: r.down, up: r.up, ping: r.ping });
+  saveHistory(h);
+  renderHistory();
+}
+$('clearHistory').addEventListener('click', function () {
+  saveHistory([]);
+  renderHistory();
+});
+
+/* ---- ქსელის ინფო: IP / პროვაიდერი / ქალაქი (3) ---- */
+function renderNet() {
+  var parts = [];
+  if (net.ip) parts.push('IP: ' + net.ip);
+  if (net.isp) parts.push('პროვაიდერი: ' + net.isp);
+  else if (net.asn) parts.push(net.asn);
+  if (net.city) parts.push(net.city + (net.country ? ', ' + net.country : ''));
+  netInfo.textContent = parts.join(' · ');
+  if (net.server) serverInfo.textContent = 'სერვერი: ' + net.server;
+}
+function captureNet(res) {
+  if (!res.headers) return;
+  var g = function (a, b) { return res.headers.get(a) || (b ? res.headers.get(b) : null); };
+  if (!net.ip) net.ip = g('cf-meta-ip');
+  if (!net.asn) net.asn = g('cf-meta-asn');
+  if (!net.city) net.city = g('cf-meta-city', 'city');
+  if (!net.country) net.country = g('cf-meta-country', 'country');
+  var colo = g('cf-meta-colo', 'colo');
+  if (!net.server && (net.city || colo)) net.server = [net.city, net.country].filter(Boolean).join(', ') || colo;
+  renderNet();
+  if (net.ip && !net.isp) fetchIsp(net.ip);
+}
+function fetchIsp(ip) {
+  var ctrl = new AbortController();
+  var to = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 4000);
+  fetch('https://ip-api.com/json/' + encodeURIComponent(ip) + '?fields=status,isp', { signal: ctrl.signal })
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      clearTimeout(to);
+      if (j && j.status === 'success' && j.isp) { net.isp = j.isp; renderNet(); }
+    })
+    .catch(function () { clearTimeout(to); });
+}
+
+/* ---- Ping ---- */
 async function measurePing() {
   try { await fetch(DOWN_BASE + '?bytes=0', { cache: 'no-store' }); } catch (e) {}
   var samples = [];
@@ -44,18 +179,7 @@ async function measurePing() {
   return { ping: ping, jitter: jitter };
 }
 
-/* ---- Download: N პარალელური ნაკადი, reader-ით ბაიტების დათვლა.
-   შენიშვნა: __down endpoint-ი 100 MB-ზე 403-ს აბრუნებს — მაქსიმუმი ~25 MB,
-   ამიტომ ნაკადი 25 MB-იან ნაწილებს იმეორებს დედლაინამდე. ---- */
-var DOWNLOAD_CHUNK = 25000000;
-
-function captureServer(res, counter) {
-  if (counter.server || !res.headers) return;
-  var city = res.headers.get('cf-meta-city') || res.headers.get('city');
-  var country = res.headers.get('cf-meta-country') || res.headers.get('country');
-  if (city || country) counter.server = [city, country].filter(Boolean).join(', ');
-}
-
+/* ---- Download ---- */
 async function downloadStream(url, signal, counter, deadline) {
   while (performance.now() < deadline && !stopFlag) {
     var res;
@@ -66,7 +190,7 @@ async function downloadStream(url, signal, counter, deadline) {
       throw err;
     }
     if (!res.ok) throw new Error('download failed: ' + res.status);
-    captureServer(res, counter);
+    captureNet(res);
     var reader = res.body.getReader();
     try {
       for (;;) {
@@ -83,20 +207,25 @@ async function downloadStream(url, signal, counter, deadline) {
 }
 
 async function measureDownload(onTick) {
-  var counter = { bytes: 0, server: null };
+  var cfg = MODES[mode];
+  var counter = { bytes: 0 };
   var ctrl = new AbortController();
   aborters.push(ctrl);
   var start = performance.now();
-  var deadline = start + DOWNLOAD_SECONDS * 1000;
+  var deadline = start + cfg.downSec * 1000;
   var timer = setInterval(function () {
     var elapsed = (performance.now() - start) / 1000;
-    if (elapsed > 0.3) onTick(mbps(counter.bytes, elapsed));
+    if (elapsed > 0.3) {
+      var v = mbps(counter.bytes, elapsed);
+      onTick(v);
+      graphPush(elapsed, v, 'down');
+    }
   }, 200);
   var streams = [];
-  for (var i = 0; i < DOWNLOAD_STREAMS; i++) {
+  for (var i = 0; i < cfg.downStreams; i++) {
     streams.push(downloadStream(DOWN_BASE + '?bytes=' + DOWNLOAD_CHUNK, ctrl.signal, counter, deadline));
   }
-  var stopTimer = setTimeout(function () { ctrl.abort(); }, DOWNLOAD_SECONDS * 1000 + 500);
+  var stopTimer = setTimeout(function () { ctrl.abort(); }, cfg.downSec * 1000 + 500);
   try {
     await Promise.all(streams);
   } finally {
@@ -105,10 +234,10 @@ async function measureDownload(onTick) {
   }
   var seconds = (performance.now() - start) / 1000;
   usedBytes += counter.bytes;
-  return { speed: mbps(counter.bytes, seconds), server: counter.server };
+  return { speed: mbps(counter.bytes, seconds) };
 }
 
-/* ---- Upload: XHR (upload progress events), პარალელური POST-ები ---- */
+/* ---- Upload (XHR progress) ---- */
 var upBlob = null;
 function getUpData() {
   if (upBlob) return upBlob;
@@ -137,15 +266,20 @@ function uploadStream(counter, ms) {
 }
 
 async function measureUpload(onTick) {
+  var cfg = MODES[mode];
   var counter = { bytes: 0 };
   var start = performance.now();
   var timer = setInterval(function () {
     var elapsed = (performance.now() - start) / 1000;
-    if (elapsed > 0.3) onTick(mbps(counter.bytes, elapsed));
+    if (elapsed > 0.3) {
+      var v = mbps(counter.bytes, elapsed);
+      onTick(v);
+      graphPush(elapsed, v, 'up');
+    }
   }, 200);
   var streams = [];
-  for (var i = 0; i < UPLOAD_STREAMS; i++) {
-    streams.push(uploadStream(counter, UPLOAD_SECONDS * 1000));
+  for (var i = 0; i < cfg.upStreams; i++) {
+    streams.push(uploadStream(counter, cfg.upSec * 1000));
   }
   await Promise.all(streams);
   clearInterval(timer);
@@ -154,16 +288,28 @@ async function measureUpload(onTick) {
   return { speed: mbps(counter.bytes, seconds) };
 }
 
+/* ---- რეჟიმის არჩევა (5) ---- */
+function setMode(m) {
+  mode = m;
+  $('modeQuick').classList.toggle('active', m === 'quick');
+  $('modeFull').classList.toggle('active', m === 'full');
+  hintText.textContent = MODES[m].hint;
+}
+$('modeQuick').addEventListener('click', function () { if (!running) setMode('quick'); });
+$('modeFull').addEventListener('click', function () { if (!running) setMode('full'); });
+
 /* ---- მთავარი პროცესი ---- */
 async function runTest() {
   if (running) return;
   running = true; stopFlag = false; aborters = []; usedBytes = 0; lastResult = null;
+  graphSamples = []; drawGraph();
+  colorBig(null);
   startBtn.textContent = 'გაჩერება';
   startBtn.classList.add('stop');
   shareBtn.hidden = true;
+  verdictEl.textContent = '';
   resDown.textContent = '—'; resUp.textContent = '—'; resPing.textContent = '—';
   resDownMB.textContent = ''; resUpMB.textContent = ''; resJitter.textContent = '';
-  serverInfo.textContent = '';
   try {
     setStatus('Ping იზომება…');
     var ping = await measurePing();
@@ -173,31 +319,32 @@ async function runTest() {
     lastResult = { ping: ping.ping };
 
     setStatus('ჩამოტვირთვა იზომება…');
-    var down = await measureDownload(function (v) { setBig(fmt(v)); });
+    var down = await measureDownload(function (v) { setBig(fmt(v)); colorBig(v); });
     if (stopFlag) throw new Error('stopped');
     resDown.textContent = fmt(down.speed);
-    resDownMB.textContent = fmt(mbs(down.speed * 1e6 / 8 * 1, 1), 1) + ' MB/წმ';
-    setBig(fmt(down.speed));
+    resDownMB.textContent = fmt(mbs(down.speed * 1e6 / 8, 1), 1) + ' MB/წმ';
+    setBig(fmt(down.speed)); colorBig(down.speed);
+    verdictEl.textContent = verdictFor(down.speed, ping.ping);
     lastResult.down = down.speed;
-    if (down.server) serverInfo.textContent = 'სერვერი: ' + down.server;
 
     setStatus('ატვირთვა იზომება…');
     var up = await measureUpload(function (v) { setBig(fmt(v)); });
     if (stopFlag) throw new Error('stopped');
     resUp.textContent = fmt(up.speed);
-    resUpMB.textContent = fmt(mbs(up.speed * 1e6 / 8 * 1, 1), 1) + ' MB/წმ';
-    setBig(fmt(down.speed));
+    resUpMB.textContent = fmt(mbs(up.speed * 1e6 / 8, 1), 1) + ' MB/წმ';
+    setBig(fmt(down.speed)); colorBig(down.speed);
     lastResult.up = up.speed;
 
     setStatus('მზადაა · მოხმარებული მონაცემები: ~' + Math.round(usedBytes / 1e6) + ' MB');
+    addHistory(lastResult);
     shareBtn.hidden = false;
   } catch (err) {
     if (err && err.message === 'stopped') {
       setStatus('ტესტი შეჩერებულია');
-      setBig('—');
+      setBig('—'); colorBig(null);
     } else {
       setStatus('ტესტი ვერ ჩატარდა — შეამოწმე ინტერნეტი და სცადე თავიდან.');
-      setBig('—');
+      setBig('—'); colorBig(null);
     }
   } finally {
     running = false;
@@ -230,3 +377,13 @@ shareBtn.addEventListener('click', function () {
     document.body.removeChild(ta); done();
   }
 });
+
+/* ---- PWA (6): service worker ---- */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
+}
+
+renderHistory();
+drawGraph();

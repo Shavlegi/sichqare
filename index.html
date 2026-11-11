@@ -3,9 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="description" content="სიჩქარე — ინტერნეტის სიჩქარის უფასო ტესტი ქართულად. ჩამოტვირთვა, ატვირთვა და Ping.">
+<meta name="description" content="სიჩქარე — ინტერნეტის სიჩქარის უფასო ტესტი ქართულად. ჩამოტვირთვა, ატვირთვა, Ping, ისტორია.">
+<meta name="theme-color" content="#12275c">
 <title>სიჩქარე — ინტერნეტის სიჩქარის ტესტი</title>
 <link rel="stylesheet" href="styles.css">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
 </head>
 <body>
 <main class="wrap">
@@ -17,10 +20,21 @@
   <section class="gauge" aria-live="polite">
     <div class="big"><span id="bigSpeed">—</span><span class="unit" id="bigUnit">Mbps</span></div>
     <p class="status" id="statusText">დააჭირე ღილაკს და გაიგე შენი ინტერნეტის სიჩქარე</p>
+    <p class="verdict" id="verdict"></p>
   </section>
 
+  <div class="modes" role="group" aria-label="ტესტის რეჟიმი">
+    <button id="modeQuick" class="mode" type="button">სწრაფი · ~5 წამი</button>
+    <button id="modeFull" class="mode active" type="button">სრული · ~10 წამი</button>
+  </div>
+
   <button id="startBtn" class="start">ტესტის დაწყება</button>
-  <p class="hint">ერთი ტესტი დაახლოებით 100 MB ინტერნეტს მოიხმარს — ჯობია Wi-Fi-ზე გაუშვა.</p>
+  <p class="hint" id="hintText">სრული ტესტი დაახლოებით 100 MB ინტერნეტს მოიხმარს — ჯობია Wi-Fi-ზე გაუშვა.</p>
+
+  <section class="graph-wrap">
+    <canvas id="graph" width="520" height="140"></canvas>
+    <p class="legend"><span class="dot down"></span> ჩამოტვირთვა <span class="dot up"></span> ატვირთვა</p>
+  </section>
 
   <section class="cards">
     <div class="card">
@@ -40,9 +54,16 @@
     </div>
   </section>
 
+  <p class="server" id="netInfo"></p>
   <p class="server" id="serverInfo"></p>
 
   <button id="shareBtn" class="share" hidden>შედეგის კოპირება</button>
+
+  <section class="history" id="historySection" hidden>
+    <h2>ბოლო ტესტები</h2>
+    <ul id="historyList"></ul>
+    <button id="clearHistory" class="clear" type="button">ისტორიის წაშლა</button>
+  </section>
 
   <section class="about">
     <h2>როგორ მუშაობს?</h2>
@@ -50,7 +71,7 @@
     <p>შედეგზე მოქმედებს Wi-Fi სიგნალი, ტელეფონი და ქსელის დატვირთვა. ზუსტი შედეგისთვის ტესტი რამდენჯერმე გაუშვი და სხვა პროგრამები დახურე.</p>
   </section>
 
-  <footer>სიჩქარე · უფასო ტესტი · მონაცემები არსად ინახება</footer>
+  <footer>სიჩქარე · v2 · უფასო ტესტი · მონაცემები არსად ინახება</footer>
 </main>
 <script src="app.js"></script>
 </body>
