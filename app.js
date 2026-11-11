@@ -591,6 +591,7 @@ async function runTest() {
     lastResult.up = up.speed;
 
     setStatus(t(capped ? 'statusCapped' : 'statusReady') + ' · ' + t('dataUsed') + '~' + Math.round(usedBytes / 1e6) + ' MB');
+    lastResult.testedAt = Date.now();
     addHistory(lastResult);
     shareBtn.hidden = false; shareImgBtn.hidden = false;
   } catch (err) {
@@ -635,37 +636,213 @@ shareBtn.addEventListener('click', function () {
   }
 });
 
-/* ---- შედეგის სურათად გაზიარება ---- */
+/* ---- შედეგის სურათად გაზიარება (premium card, 1080x1080) ---- */
+var CARD = { W: 1080, H: 1080, MARGIN: 65 };
+var CARD_COLORS = {
+  bg: '#0a0a0a', blue: '#12275c', text: '#ffffff', muted: '#aab2c5',
+  cardBg: '#111827', cardBorder: '#263b68', sep: '#263044', track: '#252525',
+  green: '#22c55e', yellow: '#facc15', red: '#ef4444'
+};
+function getDownloadSpeedColor(v) {
+  return v >= 50 ? CARD_COLORS.green : v >= 10 ? CARD_COLORS.yellow : CARD_COLORS.red;
+}
+function fontStr(weight, size) {
+  return weight + ' ' + size + 'px Arial, "Noto Sans Georgian", sans-serif';
+}
+function drawRoundedRect(c, rx, ry, rw, rh, r) {
+  r = Math.max(0, Math.min(r, rw / 2, rh / 2));
+  c.beginPath();
+  c.moveTo(rx + r, ry);
+  c.arcTo(rx + rw, ry, rx + rw, ry + rh, r);
+  c.arcTo(rx + rw, ry + rh, rx, ry + rh, r);
+  c.arcTo(rx, ry + rh, rx, ry, r);
+  c.arcTo(rx, ry, rx + rw, ry, r);
+  c.closePath();
+}
+/* რიცხვი + ერთეული, ერთად ცენტრში; თუ არ ეტევა, შრიფტი პროპორციულად პატარავდება */
+function drawCenteredValueWithUnit(c, value, unit, numSize, unitSize, centerX, baselineY, maxWidth, color, numWeight) {
+  var gap = 18;
+  var ns = numSize, us = unitSize;
+  var nf, uf, nw, uw, total;
+  for (var i = 0; i < 12; i++) {
+    nf = fontStr(numWeight || '800', Math.round(ns));
+    uf = fontStr('600', Math.round(us));
+    c.font = nf; nw = c.measureText(value).width;
+    c.font = uf; uw = c.measureText(unit).width;
+    total = nw + gap + uw;
+    if (total <= maxWidth || ns <= 20) break;
+    var f = maxWidth / total;
+    ns *= f; us *= f;
+  }
+  var startX = centerX - total / 2;
+  c.textBaseline = 'middle';
+  c.textAlign = 'left';
+  c.fillStyle = color;
+  c.font = nf;
+  c.fillText(value, startX, baselineY);
+  c.fillStyle = CARD_COLORS.text;
+  c.font = uf;
+  c.fillText(unit, startX + nw + gap, baselineY);
+  return { startX: startX, endX: startX + total };
+}
+function drawCenteredText(c, text, centerX, y, font, color, spacing) {
+  c.font = font;
+  if (spacing) { try { c.letterSpacing = spacing; } catch (e) {} }
+  c.textAlign = 'center';
+  c.textBaseline = 'alphabetic';
+  c.fillStyle = color;
+  c.fillText(text, centerX, y);
+  if (spacing) { try { c.letterSpacing = '0px'; } catch (e) {} }
+}
+function drawNetworkIcon(c, cx, cy, r) {
+  c.save();
+  c.strokeStyle = '#4d8dff';
+  c.fillStyle = '#4d8dff';
+  c.lineWidth = 3;
+  c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.stroke();
+  c.beginPath(); c.arc(cx, cy + r * 0.45, r * 0.16, 0, Math.PI * 2); c.fill();
+  for (var i = 0; i < 2; i++) {
+    var rr = r * (0.45 + i * 0.2);
+    c.beginPath(); c.arc(cx, cy + r * 0.45, rr, -Math.PI * 0.78, -Math.PI * 0.22); c.stroke();
+  }
+  c.restore();
+}
+function drawUploadIcon(c, cx, cy, s) {
+  c.save();
+  c.strokeStyle = '#ffffff'; c.fillStyle = '#ffffff';
+  c.lineWidth = 4; c.lineCap = 'round'; c.lineJoin = 'round';
+  c.beginPath();
+  c.moveTo(cx, cy - s); c.lineTo(cx, cy + s);
+  c.moveTo(cx - s * 0.6, cy - s * 0.4); c.lineTo(cx, cy - s); c.lineTo(cx + s * 0.6, cy - s * 0.4);
+  c.stroke();
+  c.restore();
+}
+function drawPingIcon(c, cx, cy, r) {
+  c.save();
+  c.strokeStyle = '#ffffff'; c.lineWidth = 3.5; c.lineCap = 'round';
+  c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.stroke();
+  c.beginPath();
+  c.moveTo(cx, cy); c.lineTo(cx, cy - r * 0.55);
+  c.moveTo(cx, cy); c.lineTo(cx + r * 0.45, cy + r * 0.25);
+  c.stroke();
+  c.restore();
+}
+function drawGlobeIcon(c, cx, cy, r) {
+  c.save();
+  c.strokeStyle = '#4d8dff'; c.lineWidth = 2.5;
+  c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.stroke();
+  c.beginPath(); c.ellipse(cx, cy, r * 0.45, r, 0, 0, Math.PI * 2); c.stroke();
+  c.beginPath(); c.moveTo(cx - r, cy); c.lineTo(cx + r, cy); c.stroke();
+  c.restore();
+}
+function drawShareCard(c, r) {
+  var W = CARD.W, H = CARD.H, M = CARD.MARGIN;
+  var down = (r && isFinite(r.down)) ? r.down : 0;
+  var up = (r && isFinite(r.up)) ? r.up : 0;
+  var ping = (r && isFinite(r.ping)) ? r.ping : 0;
+  var downColor = getDownloadSpeedColor(down);
+  var cx = W / 2;
+
+  /* ფონი: #0A0A0A + ნაზი რადიალური გრადიენტი ცენტრიდან */
+  c.fillStyle = CARD_COLORS.bg;
+  c.fillRect(0, 0, W, H);
+  var bgGrad = c.createRadialGradient(cx, 430, 0, cx, 430, 780);
+  bgGrad.addColorStop(0, 'rgba(18,39,92,0.55)');
+  bgGrad.addColorStop(1, 'rgba(10,10,10,0)');
+  c.fillStyle = bgGrad;
+  c.fillRect(0, 0, W, H);
+  c.save();
+  c.strokeStyle = 'rgba(77,141,255,0.10)';
+  c.lineWidth = 2;
+  c.beginPath(); c.arc(cx, 430, 300, 0, Math.PI * 2); c.stroke();
+  c.beginPath(); c.arc(cx, 430, 380, 0, Math.PI * 2); c.stroke();
+  c.restore();
+
+  /* HEADER */
+  drawNetworkIcon(c, cx, 86, 15);
+  drawCenteredText(c, lang === 'ka' ? 'სიჩქარე' : lang === 'ru' ? 'Скорость' : 'Speed', cx, 152, fontStr('800', 58), CARD_COLORS.text);
+  drawCenteredText(c, t('subtitle'), cx, 190, fontStr('400', 25), CARD_COLORS.muted);
+  var lg = c.createLinearGradient(cx - 110, 0, cx + 110, 0);
+  lg.addColorStop(0, '#12275c'); lg.addColorStop(0.5, '#4d8dff'); lg.addColorStop(1, '#12275c');
+  c.fillStyle = lg;
+  drawRoundedRect(c, cx - 110, 206, 220, 4, 2);
+  c.fill();
+
+  /* MAIN DOWNLOAD */
+  drawCenteredText(c, 'DOWNLOAD SPEED', cx, 252, fontStr('600', 23), CARD_COLORS.muted, '3px');
+  c.save();
+  c.shadowColor = 'rgba(77,141,255,0.35)';
+  c.shadowBlur = 60;
+  c.fillStyle = 'rgba(77,141,255,0.10)';
+  c.beginPath(); c.arc(cx, 400, 190, 0, Math.PI * 2); c.fill();
+  c.restore();
+  drawCenteredValueWithUnit(c, fmt(down), 'Mbps', 170, 43, cx, 400, W - M * 2, downColor, '800');
+
+  /* PROGRESS BAR */
+  var barW = 700, barH = 16, barX = cx - barW / 2, barY = 560;
+  c.fillStyle = CARD_COLORS.track;
+  drawRoundedRect(c, barX, barY, barW, barH, 8);
+  c.fill();
+  var fillW = barW * Math.min(down / 100, 1);
+  if (fillW > 0) {
+    c.save();
+    c.shadowColor = downColor;
+    c.shadowBlur = 22;
+    c.fillStyle = downColor;
+    drawRoundedRect(c, barX, barY, fillW, barH, 8);
+    c.fill();
+    c.restore();
+  }
+  drawCenteredText(c, 'DOWNLOAD PERFORMANCE', cx, 606, fontStr('500', 17), CARD_COLORS.muted, '2px');
+
+  /* METRIC CARDS */
+  var cardY = 665, cardH = 155, cardW = 440, gap = 30;
+  var leftX = cx - cardW - gap / 2, rightX = cx + gap / 2;
+  function metricCard(x0, iconFn, label, valueStr, unitStr) {
+    c.fillStyle = CARD_COLORS.cardBg;
+    drawRoundedRect(c, x0, cardY, cardW, cardH, 22);
+    c.fill();
+    c.strokeStyle = CARD_COLORS.cardBorder;
+    c.lineWidth = 1;
+    drawRoundedRect(c, x0, cardY, cardW, cardH, 22);
+    c.stroke();
+    c.font = fontStr('600', 20);
+    var lw = c.measureText(label).width;
+    var iconSize = 24, igap = 10;
+    var groupW = iconSize + igap + lw;
+    var gx = x0 + (cardW - groupW) / 2;
+    iconFn(c, gx + iconSize / 2, 706, 11);
+    c.textAlign = 'left'; c.textBaseline = 'middle';
+    c.fillStyle = CARD_COLORS.muted;
+    c.fillText(label, gx + iconSize + igap, 706);
+    drawCenteredValueWithUnit(c, valueStr, unitStr, 49, 26, x0 + cardW / 2, 772, cardW - 40, CARD_COLORS.text, '800');
+  }
+  metricCard(leftX, drawUploadIcon, 'UPLOAD', fmt(up), 'Mbps');
+  metricCard(rightX, drawPingIcon, 'PING', fmt(ping, 0), 'ms');
+
+  /* FOOTER */
+  c.strokeStyle = CARD_COLORS.sep;
+  c.lineWidth = 2;
+  c.beginPath(); c.moveTo(85, 885); c.lineTo(W - 85, 885); c.stroke();
+  var loc = lang === 'ka' ? 'ka-GE' : lang === 'ru' ? 'ru-RU' : 'en-GB';
+  var when = new Date(r && r.testedAt ? r.testedAt : Date.now()).toLocaleString(loc);
+  drawCenteredText(c, when, cx, 935, fontStr('400', 21), CARD_COLORS.muted);
+  var url = 'shavlegi.github.io/sichqare';
+  c.font = fontStr('600', 23);
+  var uw = c.measureText(url).width;
+  var ugap = 12, iconR = 13;
+  var uStart = cx - (iconR * 2 + ugap + uw) / 2;
+  drawGlobeIcon(c, uStart + iconR, 980, iconR);
+  c.textAlign = 'left'; c.textBaseline = 'middle';
+  c.fillStyle = CARD_COLORS.text;
+  c.fillText(url, uStart + iconR * 2 + ugap, 980);
+}
 shareImgBtn.addEventListener('click', function () {
   if (!lastResult) return;
-  var S = 1080;
   var c = document.createElement('canvas');
-  c.width = S; c.height = S;
+  c.width = CARD.W; c.height = CARD.H;
   var x = c.getContext('2d');
-  x.fillStyle = '#0a0a0a'; x.fillRect(0, 0, S, S);
-  x.fillStyle = '#12275c'; x.fillRect(0, 0, S, 16);
-  x.fillStyle = '#ffffff';
-  x.font = '800 92px sans-serif';
-  x.fillText(lang === 'ka' ? 'სიჩქარე' : lang === 'ru' ? 'Скорость' : 'Speed', 80, 150);
-  x.fillStyle = '#9aa3b2';
-  x.font = '400 42px sans-serif';
-  x.fillText(t('subtitle'), 80, 210);
-  x.fillStyle = rateColor(lastResult.down || 0);
-  x.font = '800 210px sans-serif';
-  x.fillText(fmt(lastResult.down || 0), 80, 470);
-  x.fillStyle = '#9aa3b2';
-  x.font = '600 64px sans-serif';
-  x.fillText('Mbps', 80 + x.measureText(fmt(lastResult.down || 0)).width + 20, 470);
-  x.fillStyle = '#ffffff';
-  x.font = '600 52px sans-serif';
-  x.fillText('↑ ' + fmt(lastResult.up || 0) + ' Mbps', 80, 590);
-  x.fillText('Ping ' + fmt(lastResult.ping || 0, 0) + ' ms', 80, 670);
-  x.fillStyle = '#9aa3b2';
-  x.font = '400 38px sans-serif';
-  var loc = lang === 'ka' ? 'ka-GE' : lang === 'ru' ? 'ru-RU' : 'en-GB';
-  x.fillText(new Date().toLocaleString(loc), 80, 770);
-  x.fillStyle = '#666666';
-  x.fillText('shavlegi.github.io/sichqare', 80, 1000);
+  drawShareCard(x, lastResult);
   c.toBlob(function (blob) {
     if (!blob) return;
     var file = new File([blob], 'speed-test.png', { type: 'image/png' });
