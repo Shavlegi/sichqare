@@ -1,8 +1,7 @@
-/* სიჩქარე — service worker. ქეშავს მხოლოდ გვერდის ფაილებს (v3.1);
-   საზომი ტრაფიკი ყოველთვის ქსელიდან მოდის.
-   JS/CSS ვერსიებით იტვირთება (?v=3.1), რომ ახალი ვერსია ქეშმა არ დაბლოკოს. */
-var CACHE = 'sichqare-v3.1';
-var FILES = ['.', 'index.html', 'styles.css?v=3.1', 'app.js?v=3.1', 'manifest.json',
+/* სიჩქარე — service worker. ქეშავს მხოლოდ გვერდის ფაილებს;
+   საზომი ტრაფიკი ყოველთვის ქსელიდან მოდის. */
+var CACHE = 'sichqare';
+var FILES = ['.', 'index.html', 'styles.css', 'app.js', 'manifest.json',
   'icon-192.png', 'icon-512.png', 'icon-180.png', 'about.html', 'privacy.html'];
 
 self.addEventListener('install', function (e) {

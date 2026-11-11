@@ -1,7 +1,7 @@
-/* სიჩქარე v3 — ინტერნეტის სიჩქარის ტესტი.
+/* სიჩქარე — ინტერნეტის სიჩქარის ტესტი.
    იზომება Cloudflare-ის უახლოესი სერვერის (speed.cloudflare.com) წინააღმდეგ.
    საჯარო endpoint-ები, გასაღები არ სჭირდება.
-   v3: მონაცემების ლიმიტი (მომხმარებლის არჩევანი), შედეგის სურათად გაზიარება,
+   მონაცემების ლიმიტი (მომხმარებლის არჩევანი), შედეგის სურათად გაზიარება,
    ისტორიის გრაფიკი, ქსელის ნიშანი (Wi-Fi/მობილური), KA/EN/RU, AdSense გვერდები. */
 'use strict';
 
@@ -34,7 +34,7 @@ var STRINGS = {
     aboutP2: 'შედეგზე მოქმედებს Wi-Fi სიგნალი, ტელეფონი და ქსელის დატვირთვა. ზუსტი შედეგისთვის ტესტი რამდენჯერმე გაუშვი და სხვა პროგრამები დახურე.',
     dataLimitLabel: 'მონაცემების ლიმიტი',
     unlimited: 'ულიმიტო',
-    footer: 'სიჩქარე · v3.1 · უფასო ტესტი · მონაცემები არსად ინახება',
+    footer: 'სიჩქარე · უფასო ტესტი · მონაცემები არსად ინახება',
     dataUsed: 'მოხმარებული მონაცემები: ~',
     limitNote: 'პატარა ლიმიტი = ნაკლებად ზუსტი შედეგი',
     useQuick: 'სწრაფი ტესტი ~40 MB-ს მოიხმარს',
@@ -84,7 +84,7 @@ var STRINGS = {
     aboutP2: 'Results depend on your Wi-Fi signal, your phone and network load. For an accurate result, run the test a few times and close other apps.',
     dataLimitLabel: 'Data limit',
     unlimited: 'Unlimited',
-    footer: 'Speed · v3.1 · Free test · No data stored',
+    footer: 'Speed · Free test · No data stored',
     dataUsed: 'Data used: ~',
     limitNote: 'A small limit means a less accurate result',
     useQuick: 'Quick test uses ~40 MB',
@@ -134,7 +134,7 @@ var STRINGS = {
     aboutP2: 'На результат влияют сигнал Wi-Fi, телефон и загрузка сети. Для точности запустите тест несколько раз и закройте другие приложения.',
     dataLimitLabel: 'Лимит трафика',
     unlimited: 'Без лимита',
-    footer: 'Скорость · v3.1 · Бесплатный тест · Данные не хранятся',
+    footer: 'Скорость · Бесплатный тест · Данные не хранятся',
     dataUsed: 'Потрачено трафика: ~',
     limitNote: 'Маленький лимит — менее точный результат',
     useQuick: 'Быстрый тест потратит ~40 МБ',
