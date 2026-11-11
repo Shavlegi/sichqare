@@ -12,38 +12,55 @@
 </head>
 <body>
 <main class="wrap">
+  <div class="lang">
+    <button class="lang-btn active" data-lang="ka" type="button">ქართული</button>
+    <button class="lang-btn" data-lang="en" type="button">English</button>
+    <button class="lang-btn" data-lang="ru" type="button">Русский</button>
+  </div>
+
   <header>
     <h1>სიჩქარე</h1>
-    <p class="sub">ინტერნეტის სიჩქარის ტესტი</p>
+    <p class="sub" data-i18n="subtitle">ინტერნეტის სიჩქარის ტესტი</p>
   </header>
 
   <section class="gauge" aria-live="polite">
     <div class="big"><span id="bigSpeed">—</span><span class="unit" id="bigUnit">Mbps</span></div>
-    <p class="status" id="statusText">დააჭირე ღილაკს და გაიგე შენი ინტერნეტის სიჩქარე</p>
+    <p class="status" id="statusText" data-i18n="statusIdle">დააჭირე ღილაკს და გაიგე შენი ინტერნეტის სიჩქარე</p>
     <p class="verdict" id="verdict"></p>
   </section>
 
   <div class="modes" role="group" aria-label="ტესტის რეჟიმი">
-    <button id="modeQuick" class="mode" type="button">სწრაფი · ~5 წამი</button>
-    <button id="modeFull" class="mode active" type="button">სრული · ~10 წამი</button>
+    <button id="modeQuick" class="mode" type="button" data-i18n="modeQuick">სწრაფი · ~5 წამი</button>
+    <button id="modeFull" class="mode active" type="button" data-i18n="modeFull">სრული · ~10 წამი</button>
   </div>
 
-  <button id="startBtn" class="start">ტესტის დაწყება</button>
-  <p class="hint" id="hintText">სრული ტესტი დაახლოებით 100 MB ინტერნეტს მოიხმარს — ჯობია Wi-Fi-ზე გაუშვა.</p>
+  <div class="limit">
+    <span class="limit-label" data-i18n="dataLimitLabel">მონაცემების ლიმიტი</span>
+    <div class="limit-btns" id="limitBtns">
+      <button class="limit-btn" data-limit="50" type="button">50 MB</button>
+      <button class="limit-btn active" data-limit="100" type="button">100 MB</button>
+      <button class="limit-btn" data-limit="250" type="button">250 MB</button>
+      <button class="limit-btn" data-limit="500" type="button">500 MB</button>
+      <button class="limit-btn" data-limit="inf" type="button" data-i18n="unlimited">ულიმიტო</button>
+    </div>
+  </div>
+
+  <button id="startBtn" class="start" data-i18n="start">ტესტის დაწყება</button>
+  <p class="hint" id="hintText"></p>
 
   <section class="graph-wrap">
     <canvas id="graph" width="520" height="140"></canvas>
-    <p class="legend"><span class="dot down"></span> ჩამოტვირთვა <span class="dot up"></span> ატვირთვა</p>
+    <p class="legend"><span class="dot down"></span> <span data-i18n="downLabel">⬇ ჩამოტვირთვა</span> <span class="dot up"></span> <span data-i18n="upLabel">⬆ ატვირთვა</span></p>
   </section>
 
   <section class="cards">
     <div class="card">
-      <div class="label">⬇ ჩამოტვირთვა</div>
+      <div class="label" data-i18n="downLabel">⬇ ჩამოტვირთვა</div>
       <div class="value"><span id="resDown">—</span> <small>Mbps</small></div>
       <div class="sub-value" id="resDownMB"></div>
     </div>
     <div class="card">
-      <div class="label">⬆ ატვირთვა</div>
+      <div class="label" data-i18n="upLabel">⬆ ატვირთვა</div>
       <div class="value"><span id="resUp">—</span> <small>Mbps</small></div>
       <div class="sub-value" id="resUpMB"></div>
     </div>
@@ -57,21 +74,23 @@
   <p class="server" id="netInfo"></p>
   <p class="server" id="serverInfo"></p>
 
-  <button id="shareBtn" class="share" hidden>შედეგის კოპირება</button>
+  <button id="shareBtn" class="share" hidden data-i18n="copyBtn">შედეგის კოპირება</button>
+  <button id="shareImgBtn" class="share" hidden data-i18n="shareImgBtn">სურათად გაზიარება</button>
 
   <section class="history" id="historySection" hidden>
-    <h2>ბოლო ტესტები</h2>
+    <h2 data-i18n="historyTitle">ბოლო ტესტები</h2>
+    <canvas id="historyGraph" width="520" height="120"></canvas>
     <ul id="historyList"></ul>
-    <button id="clearHistory" class="clear" type="button">ისტორიის წაშლა</button>
+    <button id="clearHistory" class="clear" type="button" data-i18n="clearHistory">ისტორიის წაშლა</button>
   </section>
 
   <section class="about">
-    <h2>როგორ მუშაობს?</h2>
-    <p>ტესტი შენი ბრაუზერიდან იზომება Cloudflare-ის უახლოესი სერვერის წინააღმდეგ: ჩამოტვირთვისას ფაილი ჩამოდის და დრო ითვლება, ატვირთვისას — პირიქით. Ping არის დრო, რაც სერვერის პასუხს სჭირდება.</p>
-    <p>შედეგზე მოქმედებს Wi-Fi სიგნალი, ტელეფონი და ქსელის დატვირთვა. ზუსტი შედეგისთვის ტესტი რამდენჯერმე გაუშვი და სხვა პროგრამები დახურე.</p>
+    <h2 data-i18n="aboutTitle">როგორ მუშაობს?</h2>
+    <p data-i18n="aboutP1">ტესტი შენი ბრაუზერიდან იზომება Cloudflare-ის უახლოესი სერვერის წინააღმდეგ: ჩამოტვირთვისას ფაილი ჩამოდის და დრო ითვლება, ატვირთვისას — პირიქით. Ping არის დრო, რაც სერვერის პასუხს სჭირდება.</p>
+    <p data-i18n="aboutP2">შედეგზე მოქმედებს Wi-Fi სიგნალი, ტელეფონი და ქსელის დატვირთვა. ზუსტი შედეგისთვის ტესტი რამდენჯერმე გაუშვი და სხვა პროგრამები დახურე.</p>
   </section>
 
-  <footer>სიჩქარე · v2.1 · უფასო ტესტი · მონაცემები არსად ინახება</footer>
+  <footer><span data-i18n="footer">სიჩქარე · v3 · უფასო ტესტი · მონაცემები არსად ინახება</span><br><a href="about.html" data-i18n="aboutLink">შესახებ</a> · <a href="privacy.html" data-i18n="privacyLink">კონფიდენციალურობა</a></footer>
 </main>
 <script src="app.js"></script>
 </body>

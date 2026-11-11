@@ -1,8 +1,8 @@
-/* სიჩქარე — service worker. ქეშავს მხოლოდ გვერდის ფაილებს (v2);
+/* სიჩქარე — service worker. ქეშავს მხოლოდ გვერდის ფაილებს (v3);
    საზომი ტრაფიკი ყოველთვის ქსელიდან მოდის. */
-var CACHE = 'sichqare-v2.1';
+var CACHE = 'sichqare-v3';
 var FILES = ['.', 'index.html', 'styles.css', 'app.js', 'manifest.json',
-  'icon-192.png', 'icon-512.png', 'icon-180.png'];
+  'icon-192.png', 'icon-512.png', 'icon-180.png', 'about.html', 'privacy.html'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(
