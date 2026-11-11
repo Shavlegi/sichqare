@@ -1,6 +1,6 @@
 /* სიჩქარე — service worker. ქეშავს მხოლოდ გვერდის ფაილებს (v2);
    საზომი ტრაფიკი ყოველთვის ქსელიდან მოდის. */
-var CACHE = 'sichqare-v2';
+var CACHE = 'sichqare-v2.1';
 var FILES = ['.', 'index.html', 'styles.css', 'app.js', 'manifest.json',
   'icon-192.png', 'icon-512.png', 'icon-180.png'];
 

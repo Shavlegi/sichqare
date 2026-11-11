@@ -1,4 +1,4 @@
-/* სიჩქარე v2 — ინტერნეტის სიჩქარის ტესტი.
+/* სიჩქარე v2.1 — ინტერნეტის სიჩქარის ტესტი.
    იზომება Cloudflare-ის უახლოესი სერვერის (speed.cloudflare.com) წინააღმდეგ.
    საჯარო endpoint-ები, გასაღები არ სჭირდება.
    v2: ისტორია, შეფასება, IP/პროვაიდერი, ცოცხალი გრაფიკი, ფერები,
@@ -241,8 +241,15 @@ async function measureDownload(onTick) {
 var upBlob = null;
 function getUpData() {
   if (upBlob) return upBlob;
-  var buf = new Uint8Array(10 * 1024 * 1024);
-  crypto.getRandomValues(buf);
+  /* crypto.getRandomValues ერთ ზარში მაქსიმუმ 65,536 ბაიტს იძლევა —
+     10 MB ერთ ზარში QuotaExceededError-ს ისვრის და ატვირთვა წყდება.
+     ამიტომ 64 KB-იან ნაწილებად ვავსებთ. */
+  var size = 10 * 1024 * 1024;
+  var buf = new Uint8Array(size);
+  var CHUNK = 65536;
+  for (var off = 0; off < size; off += CHUNK) {
+    crypto.getRandomValues(buf.subarray(off, Math.min(off + CHUNK, size)));
+  }
   upBlob = new Blob([buf]);
   return upBlob;
 }
@@ -250,17 +257,25 @@ function getUpData() {
 function uploadStream(counter, ms) {
   return new Promise(function (resolve) {
     var done = false;
+    var counted = 0;
+    var data = getUpData();
+    var total = data.size;
     var finish = function (ok) { if (!done) { done = true; resolve(ok); } };
     var xhr = new XMLHttpRequest();
-    var last = 0;
     xhr.open('POST', UP_URL, true);
     xhr.upload.onprogress = function (e) {
-      if (e.loaded > last) { counter.bytes += (e.loaded - last); last = e.loaded; }
+      if (e.loaded > counted) { counter.bytes += (e.loaded - counted); counted = e.loaded; }
     };
-    xhr.onload = function () { finish(xhr.status >= 200 && xhr.status < 300); };
+    xhr.onload = function () {
+      /* თუ progress events არ მოვიდა, სრულად ატვირთული blob-ი მაინც ჩავთვალოთ */
+      if (xhr.status >= 200 && xhr.status < 300 && counted < total) {
+        counter.bytes += (total - counted); counted = total;
+      }
+      finish(xhr.status >= 200 && xhr.status < 300);
+    };
     xhr.onerror = function () { finish(false); };
     xhr.onabort = function () { finish(true); };
-    try { xhr.send(getUpData()); } catch (e) { finish(false); return; }
+    try { xhr.send(data); } catch (e) { finish(false); return; }
     setTimeout(function () { try { xhr.abort(); } catch (e) {} finish(true); }, ms);
   });
 }
